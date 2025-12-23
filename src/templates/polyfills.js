@@ -45,6 +45,7 @@ export const websimSocketPolyfill = `
     // 1. Generic Bridge (Devvit <-> Webview)
     // ------------------------------------------------------------------------
     window._genericDB = {};
+    window._listCache = {}; // Cache for stable array references
     window._subscribers = {};
     window._currentUser = null;
 
@@ -58,6 +59,7 @@ export const websimSocketPolyfill = `
                 
                 if (data.dbData) {
                     window._genericDB = data.dbData;
+                    window._listCache = {}; // Reset cache
                     window._currentUser = data.user;
                     
                     // Legacy stub support
@@ -79,12 +81,21 @@ export const websimSocketPolyfill = `
             }
         },
 
-        notifySubscribers: (collection) => {
-            if (window._subscribers[collection]) {
+        getListSnapshot: (collection) => {
+            if (!window._listCache[collection]) {
                 const list = Object.values(window._genericDB[collection] || {});
-                // Sort by created_at desc (standard behavior)
                 list.sort((a,b) => (b.created_at || 0) < (a.created_at || 0) ? -1 : 1);
-                
+                window._listCache[collection] = list;
+            }
+            return window._listCache[collection];
+        },
+
+        notifySubscribers: (collection) => {
+            // Invalidate cache
+            delete window._listCache[collection];
+            const list = DevvitBridge.getListSnapshot(collection);
+            
+            if (window._subscribers[collection]) {
                 window._subscribers[collection].forEach(cb => {
                     try { cb(list); } catch(e) { console.error(e); }
                 });
@@ -121,6 +132,10 @@ export const websimSocketPolyfill = `
         
         getAll: (collection) => {
             return window._genericDB[collection] || {};
+        },
+
+        getList: (collection) => {
+            return DevvitBridge.getListSnapshot(collection);
         },
         
         // Async get from server (bypasses cache)
@@ -163,9 +178,9 @@ export const websimSocketPolyfill = `
             window._subscribers[collection].push(callback);
             
             // Immediate callback with current data
-            const currentList = Object.values(window._genericDB[collection] || {});
-            currentList.sort((a,b) => (b.created_at || 0) < (a.created_at || 0) ? -1 : 1);
-            callback(currentList);
+            // Use cached snapshot to prevent React infinite loops
+            const currentList = DevvitBridge.getListSnapshot(collection);
+            try { callback(currentList); } catch(e) {}
             
             // Return unsubscribe function
             return () => {
@@ -189,8 +204,7 @@ export const websimSocketPolyfill = `
         constructor(name) { this.name = name; }
         
         getList = () => { 
-            const list = Object.values(window.GenericDB.getAll(this.name));
-            return list.sort((a,b) => (b.created_at || 0) < (a.created_at || 0) ? -1 : 1);
+            return window.GenericDB.getList(this.name);
         }
         
         create = async (data) => {

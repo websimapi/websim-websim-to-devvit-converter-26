@@ -188,12 +188,12 @@ export const websimSocketPolyfill = `
     class AdapterCollection {
         constructor(name) { this.name = name; }
         
-        getList() { 
+        getList = () => { 
             const list = Object.values(window.GenericDB.getAll(this.name));
             return list.sort((a,b) => (b.created_at || 0) < (a.created_at || 0) ? -1 : 1);
         }
         
-        async create(data) {
+        create = async (data) => {
             const id = Math.random().toString(36).substr(2, 12);
             const record = { 
                 id, 
@@ -204,7 +204,7 @@ export const websimSocketPolyfill = `
             return record;
         }
 
-        async update(id, data) {
+        update = async (id, data) => {
             const current = window.GenericDB.get(this.name, id);
             // If not found in cache, we could optionally await fetchFromServer here, 
             // but strict WebSim API is synchronous for getList/etc usually, async for update.
@@ -216,11 +216,11 @@ export const websimSocketPolyfill = `
             return record;
         }
 
-        async delete(id) {
+        delete = async (id) => {
              await window.GenericDB.delete(this.name, id);
         }
 
-        subscribe(cb) {
+        subscribe = (cb) => {
             return window.GenericDB.subscribe(this.name, cb);
         }
         

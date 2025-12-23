@@ -122,16 +122,16 @@ router.post('/internal/onInstall', async (req, res) => {
     res.json({ success: true });
 });
 
-router.post('/internal/createPost', async (_req, res) => {
+router.post('/internal/createPost', async (req, res) => {
     console.log('Creating game post...');
     
     try {
-        // Use the global context object from @devvit/web/server
-        const { subredditName } = context;
+        // Use the global context object from @devvit/web/server, fallback to headers if needed
+        const subredditName = context?.subredditName || req.headers['x-devvit-subreddit-name'];
         console.log('Context Subreddit:', subredditName);
 
         if (!subredditName) {
-            return res.status(400).json({ error: 'Subreddit name is required' });
+            return res.status(400).json({ error: 'Subreddit name is required (context/header missing)' });
         }
 
         const post = await reddit.submitCustomPost({

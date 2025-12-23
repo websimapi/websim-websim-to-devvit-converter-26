@@ -46,7 +46,7 @@ export const generateDevvitJson = (slug) => JSON.stringify({
     }
   },
   "server": {
-    "entry": "index.cjs"
+    "entry": "dist/server/index.cjs"
   },
   "permissions": {
     "redis": true,
@@ -99,10 +99,16 @@ export default defineConfig({
       'remotion': 'remotion',
       'websim': '/websim_package.js'
     },
+    extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'],
     // Ensure we prioritize browser builds
     mainFields: ['browser', 'module', 'main'],
   },
   assetsInclude: ['**/*.mp3', '**/*.wav', '**/*.ogg', '**/*.glb', '**/*.gltf', '**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.gif'],
+  esbuild: {
+    loader: 'jsx',
+    include: /.*\.js$/,
+    exclude: [],
+  },
   build: {
     outDir: '../../dist/client',
     emptyOutDir: true,

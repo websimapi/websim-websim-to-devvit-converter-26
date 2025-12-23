@@ -61,8 +61,19 @@ export async function generateDevvitZip(projectMeta, assets, includeReadme = tru
 
     // 2. Configs
     const hasRemotion = !!analyzer.dependencies['remotion'];
-    const hasReact = hasRemotion || !!analyzer.dependencies['react'];
+    let hasReact = hasRemotion || !!analyzer.dependencies['react'];
     const hasTailwind = analyzer.hasTailwind;
+
+    // Final check for React if not caught by dependency analysis (handles inline scripts)
+    if (!hasReact) {
+        for (const content of Object.values(clientFiles)) {
+            const code = (content instanceof Uint8Array) ? new TextDecoder().decode(content) : String(content);
+            if (/<[A-Z][A-Za-z0-9]*[\s>]/g.test(code) || /className=/g.test(code)) {
+                hasReact = true;
+                break;
+            }
+        }
+    }
 
     const extraDevDeps = {};
     if (hasReact) {

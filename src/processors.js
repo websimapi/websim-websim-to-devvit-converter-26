@@ -133,6 +133,12 @@ export class AssetAnalyzer {
     // Rewrites JS imports to use NPM packages
     processJS(jsContent, filename = 'script.js') {
         let code = uint8ToString(jsContent);
+
+        // React/JSX Detection: Ensure dependencies are tracked if JSX is present
+        if (/<[A-Z][A-Za-z0-9]*[\s>]/g.test(code) || /className=/g.test(code)) {
+            if (!this.dependencies['react']) this.dependencies['react'] = '^18.2.0';
+            if (!this.dependencies['react-dom']) this.dependencies['react-dom'] = '^18.2.0';
+        }
         
         // Generic WebSim URL Replacements (Fix CSP issues)
         code = code.replace(/https:\/\/images\.websim\.ai\/avatar\/|https:\/\/images\.websim\.com\/avatar\//g, 'https://www.redditstatic.com/avatars/avatar_default_02_FF4500.png?user=');
@@ -318,7 +324,11 @@ export class AssetAnalyzer {
             scriptCounter++;
             const safeName = filename.replace(/[^\w]/g, '_');
             // Use .jsx extension if babel type or typical React code to hint Vite
-            const isBabel = attrs.includes('type="text/babel"') || content.includes('React.') || content.includes('ReactDOM.');
+            const isBabel = attrs.includes('type="text/babel"') || 
+                           content.includes('React.') || 
+                           content.includes('ReactDOM.') ||
+                           /<[A-Z][A-Za-z0-9]*[\s>]/g.test(content) || 
+                           /className=/g.test(content);
             const ext = isBabel ? 'jsx' : 'js';
             const newScriptName = `${safeName}_inline_${scriptCounter}.${ext}`;
             

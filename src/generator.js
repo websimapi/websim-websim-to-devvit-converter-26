@@ -87,15 +87,20 @@ export async function generateDevvitZip(projectMeta, assets, includeReadme = tru
         extraDevDeps['postcss'] = '^8.4.0';
         extraDevDeps['autoprefixer'] = '^10.4.0';
         
-        zip.file("tailwind.config.js", `
+        // Place config files in src/client so Vite/PostCSS can find them during build:client
+        zip.file("src/client/tailwind.config.js", `
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./index.html", "./**/*.{js,ts,jsx,tsx}"],
+  content: [
+    "./index.html", 
+    "./*.{js,ts,jsx,tsx}", 
+    "./**/*.{js,ts,jsx,tsx}"
+  ],
   theme: { extend: {} },
   plugins: [],
 }`.trim());
         
-        zip.file("postcss.config.js", `
+        zip.file("src/client/postcss.config.js", `
 export default {
   plugins: { tailwindcss: {}, autoprefixer: {} },
 }`.trim());
@@ -107,6 +112,32 @@ export default {
                 clientFiles[path] = `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n` + clientFiles[path];
                 cssFound = true;
                 break;
+            }
+        }
+
+        // If no CSS file exists, create one and inject it to ensure Tailwind base styles load
+        if (!cssFound) {
+            const cssPath = 'tailwind_generated.css';
+            clientFiles[cssPath] = `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n`;
+            
+            // Find index.html to inject the link
+            const indexPath = Object.keys(clientFiles).find(p => p.endsWith('index.html'));
+            if (indexPath) {
+                let htmlContent = clientFiles[indexPath];
+                if (htmlContent instanceof Uint8Array) {
+                    htmlContent = new TextDecoder().decode(htmlContent);
+                }
+                
+                // Only inject if not already present
+                if (!htmlContent.includes(cssPath)) {
+                    // Try to inject before </head>, fallback to body
+                    if (htmlContent.includes('</head>')) {
+                        htmlContent = htmlContent.replace('</head>', `<link rel="stylesheet" href="./${cssPath}">\n</head>`);
+                    } else {
+                        htmlContent = `<link rel="stylesheet" href="./${cssPath}">\n` + htmlContent;
+                    }
+                    clientFiles[indexPath] = htmlContent;
+                }
             }
         }
     }

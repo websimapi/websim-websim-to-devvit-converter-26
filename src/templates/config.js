@@ -194,6 +194,11 @@ export default defineConfig({
         entryFileNames: 'index.cjs',
         inlineDynamicImports: true,
       },
+      onwarn(warning, warn) {
+        // Suppress "Use of eval" warning from protobufjs/inquire which is common in devvit/google protos
+        if (warning.code === 'EVAL' && warning.id.includes('protobufjs')) return;
+        warn(warning);
+      },
     },
   },
 });
